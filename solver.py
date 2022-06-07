@@ -75,28 +75,40 @@ class GameResult:
                f"\"Guess result data\":\n{self.guess_result}"
 
 
+def str_to_dict(str):
+    res = {}
+    for (i, c) in enumerate(str):
+        if c not in res:
+            res[c] = {i}
+        else:
+            res[c].add(i)
+
+    return res
+
+
 def check_guess(selected_word, guess):
     guess_res = GuessResult()
-    for (i, c) in enumerate(guess):
-        swc = selected_word[i]
-        if c == swc:
-            if c not in guess_res.contains_precise:
-                guess_res.contains_precise[c] = {i}
-            else:
-                guess_res.contains_precise[c].add(i)
-        elif c in selected_word:
-            if c not in guess_res.contains_not_at:
-                guess_res.contains_not_at[c] = [1, {i}]
-            else:
-                guess_res.contains_not_at[c][0] += 1
-                guess_res.contains_not_at[c][1].add(i)
-        else:
-            guess_res.contains_no.add(c)
+    selected_dict = str_to_dict(selected_word)
 
-    for (c, k) in guess_res.contains_not_at.items():
-        guess_res.contains_not_at[c][0] = max(guess_res.contains_not_at[c][0], selected_word.count(c))
-        if c in guess_res.contains_precise:
-            guess_res.contains_not_at[c][0] -= len(guess_res.contains_precise[c])
+    for (i, c) in enumerate(guess):
+        if c not in selected_dict:
+            guess_res.contains_no.add(c)
+        else:
+            indices = selected_dict[c]
+            if i in indices:
+                if c not in guess_res.contains_precise:
+                    guess_res.contains_precise[c] = {i}
+                else:
+                    guess_res.contains_precise[c].add(i)
+            else:
+                if c not in guess_res.contains_not_at:
+                    guess_res.contains_not_at[c] = [0, {i}]
+                else:
+                    guess_res.contains_not_at[c][1].add(i)
+    for (c, (cnt, idx)) in guess_res.contains_not_at.items():
+        cnt_found = len(guess_res.contains_precise.get(c, []))
+        cnt_exist = len(selected_dict[c])
+        guess_res.contains_not_at[c][0] = min(len(idx), cnt_exist - cnt_found)
 
     return guess_res
 
@@ -105,14 +117,13 @@ def make_guess(dictionary, guess_res):
     return random_word(dictionary)
 
 
-cnt = [0]
-imit = ['омськ', 'уклін', 'кичка']
-
-
-def make_guess_imit(dictionary, guess_res):
-    res = imit[cnt[0]]
-    cnt[0] += 1
-    return res
+# cnt = [0]
+# imit = ['сагач', 'бадам', 'ратай', 'тарах', 'карат']
+#
+# def make_guess_imit(dictionary, guess_res):
+#     res = imit[cnt[0]]
+#     cnt[0] += 1
+#     return res
 
 
 def filter_possible_words(dictionary, guess_res):
@@ -155,12 +166,15 @@ def aggregate_results(guess_res1, guess_res2):
     contains_precise = {**guess_res1.contains_precise, **guess_res2.contains_precise}
     contains_not_at = {}
     for (c, (cnt, idx)) in guess_res1.contains_not_at.items():
+        inc_prec = max(len(guess_res2.contains_precise.get(c, [])) - len(guess_res1.contains_precise.get(c, [])), 0)
+        cnt = max(cnt - inc_prec, 0)
         contains_not_at[c] = [cnt, idx]
     for (c, (cnt, idx)) in guess_res2.contains_not_at.items():
         if c not in contains_not_at:
             contains_not_at[c] = [cnt, idx]
         else:
-            contains_not_at[c][0] = max(contains_not_at[c][0], cnt)
+            inc_prec = max(len(guess_res1.contains_precise.get(c, [])) - len(guess_res2.contains_precise.get(c, [])), 0)
+            contains_not_at[c][0] = max(contains_not_at[c][0], cnt - inc_prec)
             contains_not_at[c][1].update(idx)
 
     return GuessResult(contains_not_at, contains_precise, contains_no)
