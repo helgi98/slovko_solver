@@ -12,9 +12,9 @@ def create_connection(db_file):
     return conn
 
 
-def execute_query(conn, query, params=()):
+def execute_query(conn, query, params=(), mapper=(lambda x: x)):
     cur = conn.cursor()
 
     cur.execute(query, params)
 
-    return cur.fetchall()
+    return list(map(mapper, cur.fetchall()))
