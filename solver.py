@@ -3,32 +3,22 @@ import random
 
 import db_util
 
-db_path = "./data/words.db"
+WORD_LENGTH = 5
+GAME_STEPS = 6
+
+DB_PATH = "./data/words.db"
 
 
 def fetch_words(word_length=5):
-    with db_util.create_connection(db_path) as conn:
+    with db_util.create_connection(DB_PATH) as conn:
         query = """select word from words
                  where length(word) = ?
                  order by word asc"""
         return db_util.execute_query(conn, query, (word_length,), lambda x: x[0])
 
 
-WORD_LENGTH = 5
-GAME_STEPS = 6
-
-
 def random_word(dictionary):
     return dictionary[random.randint(0, len(dictionary) - 1)]
-
-
-dictionary = fetch_words(word_length=WORD_LENGTH)
-
-guess_res_ex = {
-    "contains": {"а": (2, [])},
-    "contains_exact": {"к": [0]},
-    "contains_no": [""]
-}
 
 
 class GuessResult:
@@ -63,6 +53,9 @@ class GuessResult:
 
     def nr_of_exact(self, c):
         return len(self.contains_exact.get(c, []))
+
+    def nr_of(self, c):
+        return self.contains.get(c, [0, None])[0] + self.nr_of_exact(c)
 
     def no(self, c):
         self.contains_no.add(c)
@@ -182,8 +175,8 @@ def filter_possible_words(dictionary, guess_res):
         return all((all(w[i] == c for i in idx)) for c, idx in guess_res.contains_exact.items())
 
     def check_contains(w):
-        return all((all(w[i] != c for i in idx)) and
-                   cnt + len(guess_res.contains_exact.get(c, [])) <= w.count(c)
+        return all(all(w[i] != c for i in idx) and
+                   guess_res.nr_of(c) <= w.count(c)
                    for c, (cnt, idx) in guess_res.contains.items())
 
     def check_word(w):
@@ -229,8 +222,7 @@ def play_game(dictionary, check_guess, go=GameOptions()):
     return GameResult(guesses, agg_res, go.max_steps)
 
 
+dictionary = fetch_words(word_length=WORD_LENGTH)
 selected_word = random_word(dictionary)
-
-gr = play_game(dictionary, lambda w: check_guess(selected_word, w))
-
-print(gr.__str__())
+res = play_game(dictionary, lambda w: check_guess(selected_word, w))
+print(res)
