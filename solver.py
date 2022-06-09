@@ -7,6 +7,7 @@ WORD_LENGTH = 5
 GAME_STEPS = 6
 
 DB_PATH = "./data/words.db"
+SLOVKO_DATA = "./data/slovko.txt"
 
 
 def fetch_words(word_length=5):
@@ -15,6 +16,11 @@ def fetch_words(word_length=5):
                  where length(word) = ?
                  order by word asc"""
         return db_util.execute_query(conn, query, (word_length,), lambda x: x[0])
+
+
+def load_slovko_dict():
+    with open(SLOVKO_DATA, "r", encoding="utf-16") as f:
+        return f.read().splitlines()
 
 
 def random_word(dictionary):
@@ -222,7 +228,7 @@ def play_game(dictionary, check_guess, go=GameOptions()):
     return GameResult(guesses, agg_res, go.max_steps)
 
 
-dictionary = fetch_words(word_length=WORD_LENGTH)
+dictionary = load_slovko_dict()
 selected_word = random_word(dictionary)
 res = play_game(dictionary, lambda w: check_guess(selected_word, w))
 print(res)
